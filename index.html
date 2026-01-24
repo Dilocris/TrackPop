@@ -30,12 +30,21 @@
                         placeholder="🔍 Search by name, vendor, or release..."
                         aria-label="Search assets by name, vendor, or fix release"
                     >
+                    <button
+                        id="clear-search-btn"
+                        class="clear-search-btn"
+                        aria-label="Clear search"
+                        title="Clear search"
+                        type="button"
+                    >
+                        ✕
+                    </button>
                 </div>
             </section>
 
             <!-- Add Asset Form -->
             <section class="add-asset-section">
-                <h2 class="section-title">Add New Asset</h2>
+                <h2 id="form-title" class="section-title">Add New Asset</h2>
                 <form id="add-asset-form" class="add-asset-form">
                     <div class="form-row">
                         <!-- Asset Name Input -->
@@ -81,10 +90,12 @@
                     <!-- Error Message Display -->
                     <div id="form-error" class="error-message" role="alert" aria-live="polite"></div>
 
-                    <!-- Submit Button -->
-                    <button type="submit" class="btn btn-primary">
-                        ➕ Add Asset
-                    </button>
+                    <!-- Form Actions -->
+                    <div class="form-actions">
+                        <button type="submit" id="submit-btn" class="btn btn-primary">
+                            ➕ Add Asset
+                        </button>
+                    </div>
                 </form>
             </section>
 
@@ -107,6 +118,15 @@
                         <p class="empty-state-subtext">Add your first asset above to get started!</p>
                     </div>
                 </div>
+
+                <!-- No Results State -->
+                <div id="no-results-state" class="no-results-state">
+                    <div class="no-results-content">
+                        <p class="no-results-icon">🔍</p>
+                        <p class="no-results-text">No matching assets found.</p>
+                        <p class="no-results-subtext">Try a different search term or clear your search.</p>
+                    </div>
+                </div>
             </section>
 
         </main>
@@ -119,7 +139,8 @@
     </div>
 
     <!-- JavaScript Files -->
-    <!-- Load in order: configuration → utilities → storage → main app -->
+    <!-- Load in order: utilities → configuration → business logic → storage → main app -->
+    <script src="utils.js"></script>
     <script src="holidays.js"></script>
     <script src="dateUtils.js"></script>
     <script src="storage.js"></script>

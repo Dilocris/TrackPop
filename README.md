@@ -5,14 +5,32 @@ A production-ready web application for tracking animation asset reviews from ven
 ## 🎯 Features
 
 - **Track Multiple Assets**: Monitor unlimited animation assets with vendor information
+- **Edit Assets**: Modify asset details (name, vendor, fix release) after creation
 - **Business Day Calculations**: Automatically excludes weekends and US federal holidays
 - **Visual Alerts**:
   - 🟠 Orange warning after 5 business days
   - 🔴 Red alert after 7 calendar days
-- **Real-Time Search**: Filter assets by name, vendor, or fix release number
+  - Color-blind friendly with emoji indicators (🟠/🔴)
+- **Real-Time Search**: Filter assets by name, vendor, or fix release number with clear button
+- **Toast Notifications**: Non-intrusive success/error messages
+- **Smart Validation**: Input validation with helpful error messages and field highlighting
+- **Loading States**: Visual feedback for all user actions
 - **Dark Mode Design**: Eye-friendly interface for long production days
-- **Persistent Data**: All data saved locally in your browser
-- **Responsive Layout**: Works on desktop, tablet, and mobile
+- **Persistent Data**: All data saved locally with automatic validation and corruption detection
+- **Responsive Layout**: Works on desktop, tablet, and mobile with optimized spacing
+
+## ✨ Recent Updates
+
+**v2.0 - Security & UX Overhaul**:
+- ✏️ **Edit Functionality**: Modify assets after creation
+- 🔒 **Enhanced Security**: Comprehensive input validation, XSS protection, UUID implementation
+- 🎯 **Toast Notifications**: Modern, non-intrusive user feedback
+- 🔍 **Improved Search**: Clear button and "no results" messaging
+- ♿ **Better Accessibility**: Color-blind friendly alerts with emoji indicators
+- 📱 **Improved Mobile UX**: Better spacing and touch-friendly buttons
+- 🐛 **Data Validation**: Automatic corruption detection and cleanup
+- ⚡ **Loading States**: Visual feedback for all operations
+- 🎨 **Enhanced UI**: Better button hierarchy, error highlighting, improved layout
 
 ## 🚀 Getting Started
 
@@ -27,22 +45,34 @@ No server, no build process, no dependencies. Just open and use.
 ### Basic Usage
 
 1. **Add an Asset**:
-   - Enter asset name (required)
-   - Enter vendor name (optional)
-   - Enter fix release number with 2 decimals (e.g., 10.30)
-   - Click "Add Asset"
+   - Enter asset name (required, max 100 characters)
+   - Enter vendor name (optional, max 100 characters)
+   - Enter fix release number (required, 0-999.99)
+   - Click "➕ Add Asset"
+   - Success notification appears
 
-2. **Search Assets**:
+2. **Edit an Asset**:
+   - Click "✏️ Edit" on any asset card
+   - Form populates with current values
+   - Modify fields as needed
+   - Click "💾 Update Asset" or "✕ Cancel"
+   - Success notification confirms update
+
+3. **Search Assets**:
    - Type in the search bar to filter by name, vendor, or release number
-   - Results update instantly as you type
+   - Results update instantly as you type (300ms debounce)
+   - Click "✕" button to clear search
+   - "No results" message when filter returns nothing
 
-3. **Reset Counter**:
-   - Click "🔄 Reset Counter" on any asset card
+4. **Reset Counter**:
+   - Click "🔄 Reset" on any asset card
    - Resets the day counter to 0 (when vendor sends new version)
+   - Success notification confirms reset
 
-4. **Delete Asset**:
-   - Click ❌ on any asset card
-   - Confirm deletion (cannot be undone)
+5. **Delete Asset**:
+   - Click "🗑️ Delete" on any asset card
+   - Confirm deletion in dialog (cannot be undone)
+   - Success notification confirms deletion
 
 ## 📁 Project Structure
 
@@ -50,6 +80,7 @@ No server, no build process, no dependencies. Just open and use.
 TrackPop/
 ├── index.html       # Main HTML structure and layout
 ├── styles.css       # Dark mode styling and design system
+├── utils.js         # Core utilities (UUID, validation, toasts, debug)
 ├── app.js           # UI controller and orchestration
 ├── storage.js       # Data persistence (localStorage)
 ├── dateUtils.js     # Business day calculations
@@ -74,7 +105,8 @@ TrackPop/
 └─────────────────────────────────────────┘
               ↓ ↑
 ┌─────────────────────────────────────────┐
-│  BUSINESS LOGIC LAYER                   │
+│  UTILITIES & BUSINESS LOGIC LAYER       │
+│  ├── utils.js (Validation, UUID, Toast) │
 │  └── dateUtils.js (Pure Functions)      │
 └─────────────────────────────────────────┘
               ↓ ↑
@@ -98,17 +130,21 @@ Each asset is stored with the following structure:
 
 ```javascript
 {
-  id: "1737642600000",              // Unique ID
-  name: "Character_WalkCycle_v2",   // Asset name
-  vendor: "Studio XYZ",             // Vendor/studio name
-  fixRelease: "10.30",              // Fix release (2 decimals)
-  startDate: "2026-01-23T14:30:00", // When tracking began
-  lastReset: "2026-01-23T14:30:00", // Last counter reset
-  createdAt: "2026-01-23T14:30:00"  // Original creation
+  id: "550e8400-e29b-41d4-a716-446655440000", // UUID v4
+  name: "Character_WalkCycle_v2",              // Asset name (max 100 chars)
+  vendor: "Studio XYZ",                        // Vendor/studio name (or "Not specified")
+  fixRelease: "10.30",                         // Fix release (2 decimals, 0-999.99)
+  startDate: "2026-01-23T14:30:00",            // When tracking began
+  lastReset: "2026-01-23T14:30:00",            // Last counter reset
+  createdAt: "2026-01-23T14:30:00"             // Original creation
 }
 ```
 
-Data is stored in **browser localStorage** under the key `"assetTracker"`.
+**Data Security & Validation**:
+- Stored in **browser localStorage** under the key `"assetTracker"`
+- Automatic validation on load - corrupted data is filtered out
+- Input validation prevents XSS and ensures data integrity
+- UUID prevents ID collisions
 
 ## 📅 Holiday Calendar Maintenance
 
@@ -299,6 +335,34 @@ localStorage.removeItem('assetTracker');
 location.reload();
 ```
 
+## 🔒 Security & Validation
+
+Production-grade security features:
+
+**Input Validation**:
+- Asset name: 1-100 characters, alphanumeric + common symbols
+- Vendor name: 0-100 characters, alphanumeric + common symbols
+- Fix release: 0-999.99, formatted to 2 decimals
+- Real-time validation with field highlighting
+- Clear error messages for user guidance
+
+**XSS Protection**:
+- All user input is sanitized before display
+- HTML escaping prevents script injection
+- Secure UUID generation (crypto API when available)
+
+**Data Integrity**:
+- Automatic data validation on localStorage load
+- Corrupted entries are filtered out and user is notified
+- UUID v4 prevents ID collisions (not timestamp-based)
+- Graceful error handling with user-friendly messages
+
+**User Experience**:
+- Toast notifications instead of browser alerts
+- Loading states for all async operations
+- Form validation with error highlighting
+- Debug mode flag for production deployment
+
 ## 📚 Learning Resources
 
 This project demonstrates professional software architecture patterns:
@@ -306,22 +370,39 @@ This project demonstrates professional software architecture patterns:
 - **Repository Pattern** (storage.js): Abstracts data access
 - **Pure Functions** (dateUtils.js): Testable, predictable logic
 - **Controller Pattern** (app.js): Coordinates between layers
+- **Input Validation** (utils.js): Security-first approach
+- **Toast Notifications**: Modern UX feedback pattern
 - **CSS Custom Properties**: Centralized design system
 - **Mobile-First Design**: Responsive from smallest screen up
-- **Accessibility**: Semantic HTML, ARIA labels, keyboard navigation
+- **Accessibility**: Semantic HTML, ARIA labels, keyboard navigation, color-blind friendly
 
 ## 🚀 Future Enhancements
 
 Potential features for future versions:
 
-- **Export to CSV**: Download asset data as spreadsheet
-- **Custom Alert Thresholds**: Different SLAs per vendor
-- **Categories/Tags**: Group assets by project or department
-- **Notes Field**: Add comments per asset
-- **History Log**: Track all resets with timestamps
-- **Email Notifications**: Proactive alerts
-- **Multi-Country Holidays**: Support international teams
-- **Analytics Dashboard**: Visualize trends and metrics
+- **Export/Import**:
+  - CSV export for spreadsheet analysis
+  - JSON export/import for backups
+  - Automatic cloud backup integration
+- **Advanced Features**:
+  - Custom alert thresholds per vendor/project
+  - Categories/tags for grouping assets
+  - Notes/comments field per asset
+  - History log tracking all resets and edits
+  - Email/webhook notifications for alerts
+- **Multi-Team Support**:
+  - Multi-country holiday calendars
+  - Time zone support
+  - Team/department filtering
+- **Analytics**:
+  - Dashboard with trends and metrics
+  - Average turnaround time by vendor
+  - SLA compliance reporting
+- **UI Enhancements**:
+  - Light mode theme toggle
+  - Drag-and-drop reordering
+  - Bulk operations (multi-select)
+  - Customizable columns/fields
 
 ## 📄 License
 

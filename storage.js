@@ -18,16 +18,18 @@
 const STORAGE_KEY = 'assetTracker';
 
 /**
- * Retrieves all assets from localStorage
+ * Retrieves all assets from localStorage with validation
  *
  * PATTERN: Try-catch for graceful error handling
+ * VALIDATION: Filters out invalid/corrupted asset data
  *
- * @returns {Array<Object>} Array of asset objects, empty array if none exist
+ * @returns {Array<Object>} Array of valid asset objects, empty array if none exist
  *
  * EDGE CASES:
  * - No data stored yet → returns []
- * - Corrupted JSON → logs error, returns []
- * - localStorage disabled → logs error, returns []
+ * - Corrupted JSON → shows error toast, returns []
+ * - Invalid asset structure → filters out bad data
+ * - localStorage disabled → shows error toast, returns []
  */
 function getAllAssets() {
     try {
@@ -40,10 +42,36 @@ function getAllAssets() {
 
         // Parse JSON string to JavaScript array
         const assets = JSON.parse(jsonString);
-        return assets;
+
+        // Validate that it's an array
+        if (!Array.isArray(assets)) {
+            debugLog('Invalid data structure in localStorage - expected array');
+            showToast('Data corruption detected. Starting fresh.', 'error');
+            return [];
+        }
+
+        // Filter out invalid assets and log issues
+        const validAssets = assets.filter((asset, index) => {
+            const valid = isValidAsset(asset);
+            if (!valid) {
+                debugLog(`Invalid asset at index ${index}:`, asset);
+            }
+            return valid;
+        });
+
+        // If we filtered out some assets, save the cleaned data
+        if (validAssets.length !== assets.length) {
+            debugLog(`Filtered ${assets.length - validAssets.length} invalid assets`);
+            const jsonString = JSON.stringify(validAssets);
+            localStorage.setItem(STORAGE_KEY, jsonString);
+            showToast('Some invalid data was removed', 'warning');
+        }
+
+        return validAssets;
 
     } catch (error) {
-        console.error('Failed to load assets from localStorage:', error);
+        debugLog('Failed to load assets from localStorage:', error);
+        showToast('Failed to load saved data. Please refresh the page.', 'error');
         // Return empty array so app still works
         return [];
     }
@@ -76,13 +104,13 @@ function saveAsset(asset) {
         return true; // Success
 
     } catch (error) {
-        console.error('Failed to save asset:', error);
+        debugLog('Failed to save asset:', error);
 
         // Check if storage quota exceeded
         if (error.name === 'QuotaExceededError') {
-            alert('Storage is full! Try deleting some old assets.');
+            showToast('Storage is full! Try deleting some old assets.', 'error', 5000);
         } else {
-            alert('Failed to save asset. Please try again.');
+            showToast('Failed to save asset. Please try again.', 'error');
         }
 
         return false; // Failure
@@ -110,7 +138,8 @@ function updateAsset(id, updates) {
 
         // Asset not found
         if (assetIndex === -1) {
-            console.warn(`Asset with ID ${id} not found`);
+            debugLog(`Asset with ID ${id} not found`);
+            showToast('Asset not found', 'error');
             return null;
         }
 
@@ -127,8 +156,8 @@ function updateAsset(id, updates) {
         return assets[assetIndex]; // Return updated asset
 
     } catch (error) {
-        console.error('Failed to update asset:', error);
-        alert('Failed to update asset. Please try again.');
+        debugLog('Failed to update asset:', error);
+        showToast('Failed to update asset. Please try again.', 'error');
         return null;
     }
 }
@@ -151,7 +180,8 @@ function deleteAsset(id) {
 
         // Check if anything was actually deleted
         if (updatedAssets.length === assets.length) {
-            console.warn(`Asset with ID ${id} not found`);
+            debugLog(`Asset with ID ${id} not found`);
+            showToast('Asset not found', 'error');
             return false;
         }
 
@@ -162,8 +192,8 @@ function deleteAsset(id) {
         return true; // Success
 
     } catch (error) {
-        console.error('Failed to delete asset:', error);
-        alert('Failed to delete asset. Please try again.');
+        debugLog('Failed to delete asset:', error);
+        showToast('Failed to delete asset. Please try again.', 'error');
         return false;
     }
 }
@@ -179,9 +209,11 @@ function deleteAsset(id) {
 function clearAllData() {
     try {
         localStorage.removeItem(STORAGE_KEY);
+        showToast('All data cleared', 'success');
         return true;
     } catch (error) {
-        console.error('Failed to clear data:', error);
+        debugLog('Failed to clear data:', error);
+        showToast('Failed to clear data', 'error');
         return false;
     }
 }

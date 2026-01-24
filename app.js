@@ -21,6 +21,7 @@
 
 // DOM element references (cached for performance)
 let searchInput;
+let clearSearchBtn;
 let addAssetForm;
 let assetNameInput;
 let vendorInput;
@@ -28,10 +29,16 @@ let fixReleaseInput;
 let formError;
 let assetsContainer;
 let emptyState;
+let noResultsState;
 let assetCount;
+let formTitle;
+let submitBtn;
 
 // Debounce timer for search
 let searchDebounceTimer;
+
+// Edit mode state
+let editingAssetId = null;
 
 /**
  * Initializes the application
@@ -46,6 +53,7 @@ let searchDebounceTimer;
 function init() {
     // Cache DOM elements
     searchInput = document.getElementById('search-input');
+    clearSearchBtn = document.getElementById('clear-search-btn');
     addAssetForm = document.getElementById('add-asset-form');
     assetNameInput = document.getElementById('asset-name-input');
     vendorInput = document.getElementById('vendor-input');
@@ -53,23 +61,27 @@ function init() {
     formError = document.getElementById('form-error');
     assetsContainer = document.getElementById('assets-container');
     emptyState = document.getElementById('empty-state');
+    noResultsState = document.getElementById('no-results-state');
     assetCount = document.getElementById('asset-count');
+    formTitle = document.getElementById('form-title');
+    submitBtn = document.getElementById('submit-btn');
 
     // Set up event listeners
     addAssetForm.addEventListener('submit', handleFormSubmit);
     searchInput.addEventListener('input', handleSearch);
+    clearSearchBtn.addEventListener('click', handleClearSearch);
 
     // Initial render
     renderAssets();
 }
 
 /**
- * Handles form submission for adding new asset
+ * Handles form submission for adding/editing asset
  *
  * VALIDATION:
- * - Asset name: required, non-empty
- * - Vendor: optional
- * - Fix release: required, must be valid number >= 0
+ * - Asset name: required, max 100 chars, alphanumeric + common symbols
+ * - Vendor: optional, max 100 chars
+ * - Fix release: required, valid number 0-1000
  *
  * @param {Event} event - Form submit event
  */
@@ -77,107 +89,187 @@ function handleFormSubmit(event) {
     // Prevent default form submission (page reload)
     event.preventDefault();
 
-    // Clear previous errors
+    // Clear previous errors and field highlights
+    clearFormErrors();
+
+    // Show loading state
+    showButtonLoading(submitBtn);
+
+    // Use setTimeout to allow UI to update
+    setTimeout(() => {
+        // Get input values
+        const nameValue = assetNameInput.value;
+        const vendorValue = vendorInput.value;
+        const fixReleaseValue = fixReleaseInput.value;
+
+        // Validate asset name
+        const nameResult = validateAssetName(nameValue);
+        if (!nameResult.valid) {
+            showFieldError(assetNameInput, nameResult.error);
+            hideButtonLoading(submitBtn);
+            assetNameInput.focus();
+            return;
+        }
+
+        // Validate vendor
+        const vendorResult = validateVendor(vendorValue);
+        if (!vendorResult.valid) {
+            showFieldError(vendorInput, vendorResult.error);
+            hideButtonLoading(submitBtn);
+            vendorInput.focus();
+            return;
+        }
+
+        // Validate and format fix release
+        const fixReleaseResult = validateFixRelease(fixReleaseValue);
+        if (!fixReleaseResult.valid) {
+            showFieldError(fixReleaseInput, fixReleaseResult.error);
+            hideButtonLoading(submitBtn);
+            fixReleaseInput.focus();
+            return;
+        }
+
+        // Check if we're editing or adding
+        if (editingAssetId) {
+            // UPDATE EXISTING ASSET
+            const updated = updateAsset(editingAssetId, {
+                name: nameResult.value,
+                vendor: vendorResult.value || 'Not specified',
+                fixRelease: fixReleaseResult.value
+            });
+
+            if (updated) {
+                showToast('Asset updated successfully', 'success');
+                cancelEdit();
+                renderAssets(searchInput.value);
+            }
+        } else {
+            // CREATE NEW ASSET
+            const currentTime = new Date().toISOString();
+            const asset = {
+                id: generateUUID(), // UUID for proper unique ID
+                name: nameResult.value,
+                vendor: vendorResult.value || 'Not specified',
+                fixRelease: fixReleaseResult.value,
+                startDate: currentTime,
+                lastReset: currentTime,
+                createdAt: currentTime
+            };
+
+            // Save to storage
+            const success = saveAsset(asset);
+
+            if (success) {
+                showToast('Asset added successfully', 'success');
+                // Clear form
+                addAssetForm.reset();
+                // Re-render assets (preserve search)
+                renderAssets(searchInput.value);
+            }
+        }
+
+        hideButtonLoading(submitBtn);
+    }, 100);
+}
+
+/**
+ * Displays field-specific error
+ *
+ * @param {HTMLElement} field - Input field element
+ * @param {string} message - Error message to display
+ */
+function showFieldError(field, message) {
+    // Add error class to field
+    field.classList.add('input-error');
+
+    // Show error message
+    formError.textContent = message;
+    formError.style.display = 'block';
+    formError.setAttribute('role', 'alert');
+}
+
+/**
+ * Clears all form errors
+ */
+function clearFormErrors() {
     formError.textContent = '';
     formError.style.display = 'none';
 
-    // Get input values
-    const name = assetNameInput.value.trim();
-    const vendor = vendorInput.value.trim();
-    const fixReleaseValue = fixReleaseInput.value;
+    // Remove error class from all inputs
+    [assetNameInput, vendorInput, fixReleaseInput].forEach(input => {
+        input.classList.remove('input-error');
+    });
+}
 
-    // Validate asset name
-    if (!name) {
-        showError('Asset name is required');
-        assetNameInput.focus();
+/**
+ * Enters edit mode for an asset
+ *
+ * @param {string} id - Asset ID to edit
+ */
+function startEdit(id) {
+    const assets = getAllAssets();
+    const asset = assets.find(a => a.id === id);
+
+    if (!asset) {
+        showToast('Asset not found', 'error');
         return;
     }
 
-    // Validate and format fix release
-    const fixReleaseResult = validateAndFormatFixRelease(fixReleaseValue);
-    if (!fixReleaseResult.valid) {
-        showError(fixReleaseResult.error);
-        fixReleaseInput.focus();
-        return;
-    }
+    // Set edit mode
+    editingAssetId = id;
 
-    // Create asset object
-    const currentTime = new Date().toISOString();
-    const asset = {
-        id: Date.now().toString(), // Timestamp-based unique ID
-        name: name,
-        vendor: vendor || 'Unknown', // Default if empty
-        fixRelease: fixReleaseResult.value,
-        startDate: currentTime,
-        lastReset: currentTime,
-        createdAt: currentTime
-    };
+    // Update form title and button
+    formTitle.textContent = 'Edit Asset';
+    submitBtn.innerHTML = '💾 Update Asset';
+    submitBtn.className = 'btn btn-update';
 
-    // Save to storage
-    const success = saveAsset(asset);
+    // Populate form
+    assetNameInput.value = asset.name;
+    vendorInput.value = asset.vendor === 'Not specified' ? '' : asset.vendor;
+    fixReleaseInput.value = asset.fixRelease;
 
-    if (success) {
-        // Clear form
-        addAssetForm.reset();
+    // Clear errors
+    clearFormErrors();
 
-        // Re-render assets
-        renderAssets();
+    // Scroll to form
+    addAssetForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-        // Show success feedback (optional - could add a toast notification)
-        console.log('Asset added successfully:', asset.name);
+    // Focus first field
+    assetNameInput.focus();
+
+    // Add cancel button if not exists
+    if (!document.getElementById('cancel-edit-btn')) {
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.id = 'cancel-edit-btn';
+        cancelBtn.className = 'btn btn-secondary';
+        cancelBtn.innerHTML = '✕ Cancel';
+        cancelBtn.addEventListener('click', cancelEdit);
+        submitBtn.parentNode.insertBefore(cancelBtn, submitBtn.nextSibling);
     }
 }
 
 /**
- * Validates and formats fix release number
- *
- * FORMATTING RULES:
- * - Must be a valid number
- * - Must be >= 0
- * - Always formatted to 2 decimal places
- *
- * @param {string} value - Input value from form
- * @returns {Object} { valid: boolean, value?: string, error?: string }
- *
- * EXAMPLES:
- * - "10.3" → { valid: true, value: "10.30" }
- * - "10" → { valid: true, value: "10.00" }
- * - "abc" → { valid: false, error: "..." }
+ * Cancels edit mode and returns to add mode
  */
-function validateAndFormatFixRelease(value) {
-    const num = parseFloat(value);
+function cancelEdit() {
+    // Clear edit state
+    editingAssetId = null;
 
-    if (isNaN(num)) {
-        return {
-            valid: false,
-            error: 'Fix release must be a valid number'
-        };
+    // Reset form
+    addAssetForm.reset();
+    clearFormErrors();
+
+    // Update form title and button
+    formTitle.textContent = 'Add New Asset';
+    submitBtn.innerHTML = '➕ Add Asset';
+    submitBtn.className = 'btn btn-primary';
+
+    // Remove cancel button
+    const cancelBtn = document.getElementById('cancel-edit-btn');
+    if (cancelBtn) {
+        cancelBtn.remove();
     }
-
-    if (num < 0) {
-        return {
-            valid: false,
-            error: 'Fix release must be a positive number'
-        };
-    }
-
-    // Format to exactly 2 decimal places
-    const formatted = num.toFixed(2);
-
-    return {
-        valid: true,
-        value: formatted
-    };
-}
-
-/**
- * Displays error message to user
- *
- * @param {string} message - Error message to display
- */
-function showError(message) {
-    formError.textContent = message;
-    formError.style.display = 'block';
 }
 
 /**
@@ -192,6 +284,13 @@ function showError(message) {
 function handleSearch(event) {
     const searchTerm = event.target.value;
 
+    // Show/hide clear button
+    if (searchTerm) {
+        clearSearchBtn.style.display = 'flex';
+    } else {
+        clearSearchBtn.style.display = 'none';
+    }
+
     // Clear existing timer
     clearTimeout(searchDebounceTimer);
 
@@ -199,6 +298,16 @@ function handleSearch(event) {
     searchDebounceTimer = setTimeout(() => {
         renderAssets(searchTerm);
     }, 300); // 300ms delay
+}
+
+/**
+ * Clears search input and shows all assets
+ */
+function handleClearSearch() {
+    searchInput.value = '';
+    clearSearchBtn.style.display = 'none';
+    renderAssets('');
+    searchInput.focus();
 }
 
 /**
@@ -215,10 +324,12 @@ function handleSearch(event) {
  */
 function renderAssets(searchTerm = '') {
     // Get all assets
-    let assets = getAllAssets();
+    const allAssets = getAllAssets();
+    let assets = allAssets;
 
     // Filter if search term provided
-    if (searchTerm) {
+    const isSearching = searchTerm.trim() !== '';
+    if (isSearching) {
         assets = filterAssets(assets, searchTerm);
     }
 
@@ -228,14 +339,17 @@ function renderAssets(searchTerm = '') {
     // Clear container
     assetsContainer.innerHTML = '';
 
-    // Show/hide empty state
-    if (assets.length === 0) {
-        emptyState.style.display = 'flex';
-        assetsContainer.style.display = 'none';
-    } else {
-        emptyState.style.display = 'none';
-        assetsContainer.style.display = 'block';
+    // Determine what to show
+    const hasNoAssets = allAssets.length === 0;
+    const hasNoResults = isSearching && assets.length === 0;
+    const hasAssets = assets.length > 0;
 
+    // Show appropriate state
+    emptyState.style.display = hasNoAssets ? 'flex' : 'none';
+    noResultsState.style.display = hasNoResults ? 'flex' : 'none';
+    assetsContainer.style.display = hasAssets ? 'grid' : 'none';
+
+    if (hasAssets) {
         // Create and append cards
         assets.forEach(asset => {
             const card = createAssetCard(asset);
@@ -244,7 +358,7 @@ function renderAssets(searchTerm = '') {
     }
 
     // Update count
-    assetCount.textContent = assets.length;
+    assetCount.textContent = allAssets.length;
 }
 
 /**
@@ -312,7 +426,7 @@ function sortAssetsByUrgency(assets) {
  * STRUCTURE:
  * - Header: Asset name + delete button
  * - Body: Vendor, fix release, dates, counters, alert message
- * - Actions: Reset button
+ * - Actions: Edit and Reset buttons
  *
  * @param {Object} asset - Asset object
  * @returns {HTMLElement} Asset card element
@@ -324,6 +438,9 @@ function createAssetCard(asset) {
     const alertLevel = getAlertLevel(businessDays, calendarDays);
     const alertMessage = getAlertMessage(alertLevel);
 
+    // Alert icon for better accessibility
+    const alertIcon = alertLevel === 'red' ? '🔴' : alertLevel === 'orange' ? '🟠' : '';
+
     // Create card container
     const card = document.createElement('div');
     card.className = `asset-card alert-${alertLevel}`;
@@ -332,19 +449,16 @@ function createAssetCard(asset) {
     // Build card HTML
     card.innerHTML = `
         <div class="card-header">
-            <h3 class="asset-name">📦 ${escapeHtml(asset.name)}</h3>
-            <button class="btn-delete" aria-label="Delete ${escapeHtml(asset.name)}" title="Delete asset">
-                ❌
-            </button>
+            <h3 class="asset-name">${alertIcon} 📦 ${escapeHtml(asset.name)}</h3>
         </div>
         <div class="card-meta">
             <span class="vendor">🏢 ${escapeHtml(asset.vendor)}</span>
             <span class="separator">•</span>
-            <span class="fix-release">📋 Fix Release: ${asset.fixRelease}</span>
+            <span class="fix-release">📋 v${asset.fixRelease}</span>
         </div>
         <div class="card-divider"></div>
         <div class="card-body">
-            <p class="start-date">📅 Started: ${formatDate(asset.lastReset)}</p>
+            <p class="start-date">📅 Last Reset: ${formatDate(asset.lastReset)}</p>
             <p class="days-counter">
                 ⏱️ <strong>${calendarDays}</strong> calendar day${calendarDays !== 1 ? 's' : ''} |
                 <strong>${businessDays}</strong> business day${businessDays !== 1 ? 's' : ''}
@@ -352,14 +466,24 @@ function createAssetCard(asset) {
             ${alertMessage ? `<p class="alert-message">${alertMessage}</p>` : ''}
         </div>
         <div class="card-actions">
-            <button class="btn btn-reset">🔄 Reset Counter</button>
+            <button class="btn btn-edit" title="Edit asset">
+                ✏️ Edit
+            </button>
+            <button class="btn btn-reset" title="Reset counter to 0">
+                🔄 Reset
+            </button>
+            <button class="btn btn-delete" aria-label="Delete ${escapeHtml(asset.name)}" title="Delete asset">
+                🗑️ Delete
+            </button>
         </div>
     `;
 
     // Attach event listeners
+    const editBtn = card.querySelector('.btn-edit');
     const deleteBtn = card.querySelector('.btn-delete');
     const resetBtn = card.querySelector('.btn-reset');
 
+    editBtn.addEventListener('click', () => startEdit(asset.id));
     deleteBtn.addEventListener('click', () => handleDelete(asset.id, asset.name));
     resetBtn.addEventListener('click', () => handleReset(asset.id));
 
@@ -382,8 +506,13 @@ function handleDelete(id, name) {
         const success = deleteAsset(id);
 
         if (success) {
-            renderAssets();
-            console.log('Asset deleted:', name);
+            showToast(`Deleted "${name}"`, 'success');
+            // Cancel edit if we're editing this asset
+            if (editingAssetId === id) {
+                cancelEdit();
+            }
+            renderAssets(searchInput.value);
+            debugLog('Asset deleted:', name);
         }
     }
 }
@@ -404,23 +533,10 @@ function handleReset(id) {
     });
 
     if (updated) {
-        renderAssets();
-        console.log('Asset reset:', id);
+        showToast('Counter reset to 0', 'success');
+        renderAssets(searchInput.value);
+        debugLog('Asset reset:', id);
     }
-}
-
-/**
- * Escapes HTML to prevent XSS attacks
- *
- * SECURITY: Essential when displaying user-generated content
- *
- * @param {string} text - Text to escape
- * @returns {string} Escaped text safe for HTML
- */
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
 }
 
 // Initialize app when DOM is ready
