@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asset Review Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Main Application Container -->
+    <div class="app-container">
+
+        <!-- Header Section -->
+        <header class="app-header">
+            <h1>🎬 Asset Review Tracker</h1>
+            <p class="subtitle">Track Your Animation Reviews</p>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+
+            <!-- Search Bar -->
+            <section class="search-section">
+                <div class="search-container">
+                    <label for="search-input" class="visually-hidden">Search assets</label>
+                    <input
+                        type="text"
+                        id="search-input"
+                        class="search-input"
+                        placeholder="🔍 Search by name, vendor, or release..."
+                        aria-label="Search assets by name, vendor, or fix release"
+                    >
+                </div>
+            </section>
+
+            <!-- Add Asset Form -->
+            <section class="add-asset-section">
+                <h2 class="section-title">Add New Asset</h2>
+                <form id="add-asset-form" class="add-asset-form">
+                    <div class="form-row">
+                        <!-- Asset Name Input -->
+                        <div class="form-group">
+                            <label for="asset-name-input">Asset Name *</label>
+                            <input
+                                type="text"
+                                id="asset-name-input"
+                                name="assetName"
+                                placeholder="e.g., Character_WalkCycle_v2"
+                                required
+                                aria-required="true"
+                            >
+                        </div>
+
+                        <!-- Vendor Input -->
+                        <div class="form-group">
+                            <label for="vendor-input">Vendor</label>
+                            <input
+                                type="text"
+                                id="vendor-input"
+                                name="vendor"
+                                placeholder="e.g., Studio XYZ"
+                            >
+                        </div>
+
+                        <!-- Fix Release Input -->
+                        <div class="form-group">
+                            <label for="fix-release-input">Fix Release *</label>
+                            <input
+                                type="number"
+                                id="fix-release-input"
+                                name="fixRelease"
+                                step="0.01"
+                                min="0"
+                                placeholder="e.g., 10.30"
+                                required
+                                aria-required="true"
+                            >
+                        </div>
+                    </div>
+
+                    <!-- Error Message Display -->
+                    <div id="form-error" class="error-message" role="alert" aria-live="polite"></div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" class="btn btn-primary">
+                        ➕ Add Asset
+                    </button>
+                </form>
+            </section>
+
+            <!-- Assets Display Section -->
+            <section class="assets-section">
+                <div class="section-header">
+                    <h2 class="section-title">Tracked Assets (<span id="asset-count">0</span>)</h2>
+                </div>
+
+                <!-- Asset Cards Container -->
+                <div id="assets-container" class="assets-container">
+                    <!-- Asset cards will be dynamically inserted here by JavaScript -->
+                </div>
+
+                <!-- Empty State Message -->
+                <div id="empty-state" class="empty-state">
+                    <div class="empty-state-content">
+                        <p class="empty-state-icon">📦</p>
+                        <p class="empty-state-text">No assets tracked yet.</p>
+                        <p class="empty-state-subtext">Add your first asset above to get started!</p>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>&copy; 2026 Asset Review Tracker | Production Tool</p>
+        </footer>
+
+    </div>
+
+    <!-- JavaScript Files -->
+    <!-- Load in order: configuration → utilities → storage → main app -->
+    <script src="holidays.js"></script>
+    <script src="dateUtils.js"></script>
+    <script src="storage.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
