@@ -40,6 +40,10 @@ let searchDebounceTimer;
 // Edit mode state
 let editingAssetId = null;
 
+// Sort and filter state
+let currentSortOrder = 'urgency';
+let currentFilter = 'all';
+
 /**
  * Initializes the application
  *
@@ -71,8 +75,185 @@ function init() {
     searchInput.addEventListener('input', handleSearch);
     clearSearchBtn.addEventListener('click', handleClearSearch);
 
+    // Sort and filter controls
+    const sortSelect = document.getElementById('sort-select');
+    const filterSelect = document.getElementById('filter-select');
+
+    sortSelect.addEventListener('change', (e) => {
+        currentSortOrder = e.target.value;
+        renderAssets(searchInput.value);
+    });
+
+    filterSelect.addEventListener('change', (e) => {
+        currentFilter = e.target.value;
+        renderAssets(searchInput.value);
+    });
+
     // Initial render
     renderAssets();
+
+    // Add Asset button event listener
+    const addAssetBtn = document.getElementById('add-asset-btn');
+    const addAssetSection = document.getElementById('add-asset-section');
+
+    addAssetBtn.addEventListener('click', () => {
+        const isVisible = addAssetSection.style.display !== 'none';
+        addAssetSection.style.display = isVisible ? 'none' : 'block';
+        addAssetBtn.textContent = isVisible ? '➕ Add Asset' : '➖ Hide Form';
+
+        if (!isVisible) {
+            addAssetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            assetNameInput.focus();
+        }
+    });
+
+    // CSV Import event listeners
+    const csvFileInput = document.getElementById('csv-file-input');
+    const importCsvBtnTrigger = document.getElementById('import-csv-btn-trigger');
+
+    importCsvBtnTrigger.addEventListener('click', () => {
+        csvFileInput.click();
+    });
+
+    csvFileInput.addEventListener('change', handleCsvImport);
+}
+
+/**
+ * Handles CSV file import
+ *
+ * EXPECTED CSV FORMAT:
+ * - Headers (case-insensitive, order doesn't matter):
+ *   - Asset Name (required): Name of the asset
+ *   - Vendor (optional): Vendor company name
+ *   - Fix Release (required): Build version (e.g., 10.30)
+ *   - Link 1 (optional): URL or reference link (reserved for future)
+ *   - Link 2 (optional): URL or reference link (reserved for future)
+ *
+ * ADDITIONAL NOTES:
+ * - CSV may contain extra columns - they will be ignored
+ * - lastReset will be set to current time for all imported assets
+ * - startDate and createdAt will be set to current time
+ * - Fix Release is the overall build version in which asset will be released
+ *
+ * @param {Event} event - Click event
+ */
+async function handleCsvImport(event) {
+    const fileInput = document.getElementById('csv-file-input');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        showToast('Please select a CSV file', 'error');
+        return;
+    }
+
+    try {
+        showToast('Reading CSV file...', 'info');
+        const text = await file.text();
+        const assets = parseCsvToAssets(text);
+
+        let imported = 0;
+        let skipped = 0;
+
+        for (const assetData of assets) {
+            const success = saveAsset(assetData);
+            if (success) {
+                imported++;
+            } else {
+                skipped++;
+            }
+        }
+
+        const message = skipped > 0
+            ? `Imported ${imported} assets, ${skipped} skipped`
+            : `Imported ${imported} assets successfully`;
+
+        showToast(message, 'success');
+        renderAssets(searchInput.value);
+
+        // Reset file input
+        fileInput.value = '';
+
+    } catch (error) {
+        showToast(`Import failed: ${error.message}`, 'error');
+        debugLog('CSV import error:', error);
+    }
+}
+
+/**
+ * Parses CSV text into asset objects
+ *
+ * @param {string} csvText - Raw CSV text
+ * @returns {Array} Array of asset objects
+ */
+function parseCsvToAssets(csvText) {
+    const lines = csvText.split('\n').filter(line => line.trim());
+    if (lines.length < 2) {
+        throw new Error('CSV file is empty or has no data rows');
+    }
+
+    // Parse headers (case-insensitive)
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+
+    // Find column indices
+    const nameIdx = headers.findIndex(h => h.includes('asset') && h.includes('name'));
+    const vendorIdx = headers.findIndex(h => h.includes('vendor'));
+    const releaseIdx = headers.findIndex(h => h.includes('release') || h.includes('fix'));
+    // Link columns reserved for future use
+    const link1Idx = headers.findIndex(h => h.includes('link 1') || h.includes('link1'));
+    const link2Idx = headers.findIndex(h => h.includes('link 2') || h.includes('link2'));
+
+    if (nameIdx === -1) {
+        throw new Error('CSV must have "Asset Name" column');
+    }
+    if (releaseIdx === -1) {
+        throw new Error('CSV must have "Fix Release" or "Release" column');
+    }
+
+    const assets = [];
+    const currentTime = new Date().toISOString();
+
+    // Parse data rows
+    for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+
+        const name = values[nameIdx]?.trim();
+        const vendor = values[vendorIdx]?.trim() || 'Not specified';
+        const fixRelease = values[releaseIdx]?.trim();
+
+        // Validate required fields
+        if (!name) {
+            debugLog(`Row ${i + 1}: Skipping - missing asset name`);
+            continue;
+        }
+
+        if (!fixRelease) {
+            debugLog(`Row ${i + 1}: Skipping - missing fix release`);
+            continue;
+        }
+
+        // Validate fix release format
+        const releaseValidation = validateFixRelease(fixRelease);
+        if (!releaseValidation.valid) {
+            debugLog(`Row ${i + 1}: Skipping - invalid fix release: ${releaseValidation.error}`);
+            continue;
+        }
+
+        // Create asset object
+        assets.push({
+            id: generateUUID(),
+            name: name,
+            vendor: vendor,
+            fixRelease: releaseValidation.value,
+            startDate: currentTime,
+            lastReset: currentTime,
+            createdAt: currentTime
+            // Note: Link1 and Link2 are reserved for future implementation
+            // link1: values[link1Idx]?.trim() || '',
+            // link2: values[link2Idx]?.trim() || ''
+        });
+    }
+
+    return assets;
 }
 
 /**
@@ -163,6 +344,13 @@ function handleFormSubmit(event) {
                 showToast('Asset added successfully', 'success');
                 // Clear form
                 addAssetForm.reset();
+                // Hide form section
+                const addAssetSection = document.getElementById('add-asset-section');
+                const addAssetBtn = document.getElementById('add-asset-btn');
+                if (addAssetSection) {
+                    addAssetSection.style.display = 'none';
+                    addAssetBtn.textContent = '➕ Add Asset';
+                }
                 // Re-render assets (preserve search)
                 renderAssets(searchInput.value);
             }
@@ -218,6 +406,14 @@ function startEdit(id) {
     // Set edit mode
     editingAssetId = id;
 
+    // Show the form section
+    const addAssetSection = document.getElementById('add-asset-section');
+    const addAssetBtn = document.getElementById('add-asset-btn');
+    if (addAssetSection) {
+        addAssetSection.style.display = 'block';
+        addAssetBtn.textContent = '➖ Hide Form';
+    }
+
     // Update form title and button
     formTitle.textContent = 'Edit Asset';
     submitBtn.innerHTML = '💾 Update Asset';
@@ -247,6 +443,12 @@ function startEdit(id) {
         cancelBtn.addEventListener('click', cancelEdit);
         submitBtn.parentNode.insertBefore(cancelBtn, submitBtn.nextSibling);
     }
+
+    // Highlight the card being edited
+    const editingCard = document.querySelector(`[data-asset-id="${id}"]`);
+    if (editingCard) {
+        editingCard.classList.add('editing');
+    }
 }
 
 /**
@@ -269,6 +471,19 @@ function cancelEdit() {
     const cancelBtn = document.getElementById('cancel-edit-btn');
     if (cancelBtn) {
         cancelBtn.remove();
+    }
+
+    // Remove editing highlight from all cards
+    document.querySelectorAll('.asset-card.editing').forEach(card => {
+        card.classList.remove('editing');
+    });
+
+    // Hide the form section
+    const addAssetSection = document.getElementById('add-asset-section');
+    const addAssetBtn = document.getElementById('add-asset-btn');
+    if (addAssetSection) {
+        addAssetSection.style.display = 'none';
+        addAssetBtn.textContent = '➕ Add Asset';
     }
 }
 
@@ -333,8 +548,11 @@ function renderAssets(searchTerm = '') {
         assets = filterAssets(assets, searchTerm);
     }
 
-    // Sort by urgency
-    assets = sortAssetsByUrgency(assets);
+    // Apply alert level filter
+    assets = filterAssetsByAlertLevel(assets, currentFilter);
+
+    // Apply sorting
+    assets = sortAssets(assets, currentSortOrder);
 
     // Clear container
     assetsContainer.innerHTML = '';
@@ -421,12 +639,58 @@ function sortAssetsByUrgency(assets) {
 }
 
 /**
+ * Sorts assets based on user-selected sort order
+ * @param {Array} assets - Assets to sort
+ * @param {string} sortOrder - Sort order (name, vendor, fixRelease, daysElapsed, urgency)
+ * @returns {Array} Sorted assets
+ */
+function sortAssets(assets, sortOrder) {
+    const sorted = [...assets];
+
+    switch(sortOrder) {
+        case 'name':
+            return sorted.sort((a, b) => a.name.localeCompare(b.name));
+        case 'vendor':
+            return sorted.sort((a, b) => a.vendor.localeCompare(b.vendor));
+        case 'fixRelease':
+            return sorted.sort((a, b) => parseFloat(a.fixRelease) - parseFloat(b.fixRelease));
+        case 'daysElapsed':
+            return sorted.sort((a, b) => {
+                const aDays = calculateCalendarDays(a.lastReset);
+                const bDays = calculateCalendarDays(b.lastReset);
+                return bDays - aDays;
+            });
+        case 'urgency':
+        default:
+            return sortAssetsByUrgency(sorted);
+    }
+}
+
+/**
+ * Filters assets by alert level
+ * @param {Array} assets - Assets to filter
+ * @param {string} filterValue - Filter value (all, red, orange, normal)
+ * @returns {Array} Filtered assets
+ */
+function filterAssetsByAlertLevel(assets, filterValue) {
+    if (filterValue === 'all') return assets;
+
+    return assets.filter(asset => {
+        const alertLevel = getAlertLevel(
+            calculateCalendarDays(asset.lastReset),
+            calculateBusinessDays(asset.lastReset)
+        );
+        return alertLevel === filterValue;
+    });
+}
+
+/**
  * Creates a DOM element for an asset card
  *
  * STRUCTURE:
  * - Header: Asset name + delete button
  * - Body: Vendor, fix release, dates, counters, alert message
- * - Actions: Edit and Reset buttons
+ * - Actions: Edit and Review buttons
  *
  * @param {Object} asset - Asset object
  * @returns {HTMLElement} Asset card element
@@ -458,7 +722,7 @@ function createAssetCard(asset) {
         </div>
         <div class="card-divider"></div>
         <div class="card-body">
-            <p class="start-date">📅 Last Reset: ${formatDate(asset.lastReset)}</p>
+            <p class="start-date">📅 Last Reviewed: ${formatDate(asset.lastReset)}</p>
             <p class="days-counter">
                 ⏱️ <strong>${calendarDays}</strong> calendar day${calendarDays !== 1 ? 's' : ''} |
                 <strong>${businessDays}</strong> business day${businessDays !== 1 ? 's' : ''}
@@ -466,26 +730,31 @@ function createAssetCard(asset) {
             ${alertMessage ? `<p class="alert-message">${alertMessage}</p>` : ''}
         </div>
         <div class="card-actions">
-            <button class="btn btn-edit" title="Edit asset">
-                ✏️ Edit
+            <!-- Primary Action: Review -->
+            <button class="btn btn-review btn-review-primary" title="Mark asset as reviewed">
+                ✓ Review
             </button>
-            <button class="btn btn-reset" title="Reset counter to 0">
-                🔄 Reset
-            </button>
-            <button class="btn btn-delete" aria-label="Delete ${escapeHtml(asset.name)}" title="Delete asset">
-                🗑️ Delete
-            </button>
+
+            <!-- Secondary Actions: Edit and Delete -->
+            <div class="card-actions-secondary">
+                <button class="btn btn-icon btn-edit" title="Edit asset" aria-label="Edit ${escapeHtml(asset.name)}">
+                    ✏️
+                </button>
+                <button class="btn btn-icon btn-delete" title="Delete asset" aria-label="Delete ${escapeHtml(asset.name)}">
+                    🗑️
+                </button>
+            </div>
         </div>
     `;
 
     // Attach event listeners
     const editBtn = card.querySelector('.btn-edit');
     const deleteBtn = card.querySelector('.btn-delete');
-    const resetBtn = card.querySelector('.btn-reset');
+    const reviewBtn = card.querySelector('.btn-review');
 
     editBtn.addEventListener('click', () => startEdit(asset.id));
     deleteBtn.addEventListener('click', () => handleDelete(asset.id, asset.name));
-    resetBtn.addEventListener('click', () => handleReset(asset.id));
+    reviewBtn.addEventListener('click', () => handleReview(asset.id));
 
     return card;
 }
@@ -518,14 +787,14 @@ function handleDelete(id, name) {
 }
 
 /**
- * Handles asset counter reset
+ * Handles marking asset as reviewed
  *
  * UPDATES: lastReset timestamp to current time
  * PRESERVES: All other asset data
  *
  * @param {string} id - Asset ID
  */
-function handleReset(id) {
+function handleReview(id) {
     const currentTime = new Date().toISOString();
 
     const updated = updateAsset(id, {
@@ -533,9 +802,9 @@ function handleReset(id) {
     });
 
     if (updated) {
-        showToast('Counter reset to 0', 'success');
+        showToast('Asset marked as reviewed', 'success');
         renderAssets(searchInput.value);
-        debugLog('Asset reset:', id);
+        debugLog('Asset reviewed:', id);
     }
 }
 

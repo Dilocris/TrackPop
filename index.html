@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-US">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -18,6 +18,23 @@
 
         <!-- Main Content -->
         <main class="main-content">
+
+            <!-- Action Buttons -->
+            <section class="actions-section">
+                <button type="button" id="add-asset-btn" class="btn btn-primary">
+                    ➕ Add Asset
+                </button>
+                <button type="button" id="import-csv-btn-trigger" class="btn btn-secondary">
+                    📥 Import CSV
+                </button>
+                <input
+                    type="file"
+                    id="csv-file-input"
+                    accept=".csv"
+                    class="csv-file-input-hidden"
+                    aria-label="Select CSV file to import"
+                >
+            </section>
 
             <!-- Search Bar -->
             <section class="search-section">
@@ -42,8 +59,56 @@
                 </div>
             </section>
 
-            <!-- Add Asset Form -->
-            <section class="add-asset-section">
+            <!-- Sort and Filter Controls -->
+            <section class="controls-section">
+                <label class="controls-label">Sort by:</label>
+                <select id="sort-select" class="control-select">
+                    <option value="urgency">Urgency (Default)</option>
+                    <option value="name">Name (A-Z)</option>
+                    <option value="vendor">Vendor (A-Z)</option>
+                    <option value="fixRelease">Fix Release</option>
+                    <option value="daysElapsed">Days Elapsed</option>
+                </select>
+                <select id="filter-select" class="control-select">
+                    <option value="all">All Assets</option>
+                    <option value="red">Red Alerts Only</option>
+                    <option value="orange">Orange Alerts Only</option>
+                    <option value="normal">Normal Only</option>
+                </select>
+            </section>
+
+            <!-- Assets Display Section -->
+            <section class="assets-section">
+                <div class="section-header">
+                    <h2 class="section-title">Tracked Assets (<span id="asset-count">0</span>)</h2>
+                </div>
+
+                <!-- Asset Cards Container -->
+                <div id="assets-container" class="assets-container">
+                    <!-- Asset cards will be dynamically inserted here by JavaScript -->
+                </div>
+
+                <!-- Empty State Message -->
+                <div id="empty-state" class="empty-state">
+                    <div class="empty-state-content">
+                        <p class="empty-state-icon">📦</p>
+                        <p class="empty-state-text">No assets tracked yet.</p>
+                        <p class="empty-state-subtext">Add your first asset above to get started!</p>
+                    </div>
+                </div>
+
+                <!-- No Results State -->
+                <div id="no-results-state" class="no-results-state">
+                    <div class="no-results-content">
+                        <p class="no-results-icon">🔍</p>
+                        <p class="no-results-text">No matching assets found.</p>
+                        <p class="no-results-subtext">Try a different search term or clear your search.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Add Asset Form (Hidden by default) -->
+            <section class="add-asset-section" id="add-asset-section" style="display: none;">
                 <h2 id="form-title" class="section-title">Add New Asset</h2>
                 <form id="add-asset-form" class="add-asset-form">
                     <div class="form-row">
@@ -97,36 +162,6 @@
                         </button>
                     </div>
                 </form>
-            </section>
-
-            <!-- Assets Display Section -->
-            <section class="assets-section">
-                <div class="section-header">
-                    <h2 class="section-title">Tracked Assets (<span id="asset-count">0</span>)</h2>
-                </div>
-
-                <!-- Asset Cards Container -->
-                <div id="assets-container" class="assets-container">
-                    <!-- Asset cards will be dynamically inserted here by JavaScript -->
-                </div>
-
-                <!-- Empty State Message -->
-                <div id="empty-state" class="empty-state">
-                    <div class="empty-state-content">
-                        <p class="empty-state-icon">📦</p>
-                        <p class="empty-state-text">No assets tracked yet.</p>
-                        <p class="empty-state-subtext">Add your first asset above to get started!</p>
-                    </div>
-                </div>
-
-                <!-- No Results State -->
-                <div id="no-results-state" class="no-results-state">
-                    <div class="no-results-content">
-                        <p class="no-results-icon">🔍</p>
-                        <p class="no-results-text">No matching assets found.</p>
-                        <p class="no-results-subtext">Try a different search term or clear your search.</p>
-                    </div>
-                </div>
             </section>
 
         </main>

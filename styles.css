@@ -7,13 +7,31 @@
  * - CSS Custom Properties for centralized theming
  * - Mobile-first responsive design
  * - Modern dark mode (default, not optional)
- * - 12px border-radius for rounded, friendly aesthetic
+ * - Audi design system integration with AudiType font
+ * - 8px border-radius for sharp, precise aesthetic
  *
  * BENEFITS:
  * - Easy to add light mode later (just swap variables)
  * - Consistent design tokens throughout
  * - Self-documenting variable names
+ * - Premium automotive aesthetic aligned with Audi brand
  */
+
+/* ========================================
+   AUDI FONT DECLARATIONS
+   ======================================== */
+
+@font-face {
+    font-family: 'AudiType';
+    src: url('fonts/AudiType-Extended.woff2') format('woff2');
+    font-weight: 400 700;
+    font-stretch: 100% 130%;
+    font-display: swap;
+}
+
+/* NOTE: AudiType font file must be placed in fonts/ directory.
+ * The font gracefully falls back to system fonts if not available.
+ * Variable font supports weights 400-700 and stretch 100-130%. */
 
 /* ========================================
    CSS CUSTOM PROPERTIES (DESIGN TOKENS)
@@ -31,41 +49,42 @@
     --text-secondary: #a0a0a0;      /* Subtle text (labels) */
     --text-muted: #707070;          /* Placeholder text */
 
-    /* Accents */
-    --accent-blue: #4A90E2;         /* Primary actions, links */
-    --accent-orange: #FF8C00;       /* Warning state */
-    --accent-red: #CC0000;          /* Alert state */
-    --accent-green: #28a745;        /* Success */
+    /* Accents - Harmonized, desaturated palette */
+    --accent-blue: #6B8CAE;         /* Muted steel blue */
+    --accent-orange: #B8884D;       /* Muted amber */
+    --accent-red: #B87070;          /* Muted rose */
+    --accent-green: #6B9B80;        /* Muted sage green */
 
-    /* Borders & Shadows */
-    --border-color: #404040;
-    --border-radius: 12px;          /* Modern rounded corners */
-    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+    /* Borders & Shadows - Audi precision aesthetic */
+    --border-color: #444444;        /* Lighter for crisper definition */
+    --border-radius: 8px;           /* Sharper, more technical feel */
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
 
     /* Alert-specific shadows */
-    --shadow-orange: 0 4px 12px rgba(255, 140, 0, 0.2);
-    --shadow-red: 0 4px 12px rgba(204, 0, 0, 0.25);
+    --shadow-orange: 0 4px 12px rgba(184, 136, 77, 0.2);
+    --shadow-red: 0 4px 12px rgba(184, 112, 112, 0.25);
 
-    /* Spacing */
-    --spacing-xs: 8px;
-    --spacing-sm: 12px;
-    --spacing-md: 20px;
-    --spacing-lg: 32px;
-    --spacing-xl: 48px;
+    /* Spacing - Compact design */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 12px;
+    --spacing-lg: 20px;
+    --spacing-xl: 32px;
 
-    /* Typography */
-    --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    --font-size-sm: 14px;
-    --font-size-base: 16px;
-    --font-size-lg: 18px;
-    --font-size-xl: 24px;
-    --font-size-xxl: 32px;
+    /* Typography - Audi Design System (Compact) */
+    --font-family: 'AudiType', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    --font-stretch: 105%;           /* Audi standard for enhanced readability */
+    --font-size-sm: 13px;
+    --font-size-base: 14px;
+    --font-size-lg: 16px;
+    --font-size-xl: 20px;
+    --font-size-xxl: 24px;
 
-    /* Transitions */
-    --transition-fast: 150ms ease-in-out;
-    --transition-base: 250ms ease-in-out;
+    /* Transitions - Refined Audi timing */
+    --transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ========================================
@@ -80,8 +99,9 @@
 
 body {
     font-family: var(--font-family);
+    font-stretch: var(--font-stretch);
     font-size: var(--font-size-base);
-    line-height: 1.6;
+    line-height: 1.5;
     color: var(--text-primary);
     background-color: var(--bg-primary);
     min-height: 100vh;
@@ -126,9 +146,9 @@ body {
 
 .app-header {
     background-color: var(--bg-secondary);
-    padding: var(--spacing-lg);
+    padding: var(--spacing-md);
     border-radius: var(--border-radius);
-    margin-bottom: var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
     text-align: center;
     box-shadow: var(--shadow-md);
 }
@@ -149,7 +169,7 @@ body {
    ======================================== */
 
 .search-section {
-    margin-bottom: var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
 }
 
 .search-container {
@@ -200,14 +220,88 @@ body {
 }
 
 /* ========================================
+   ACTION BUTTONS
+   ======================================== */
+
+.actions-section {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.actions-section .btn {
+    flex: 1;
+    max-width: 200px;
+}
+
+.csv-file-input-hidden {
+    display: none;
+}
+
+@media (max-width: 767px) {
+    .actions-section {
+        flex-direction: column;
+    }
+
+    .actions-section .btn {
+        max-width: 100%;
+    }
+}
+
+/* ========================================
+   SORT AND FILTER CONTROLS
+   ======================================== */
+
+.controls-section {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+    flex-wrap: wrap;
+}
+
+.controls-label {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.control-select {
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+    background-color: var(--bg-input);
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius);
+    outline: none;
+    transition: border-color var(--transition-base);
+    cursor: pointer;
+}
+
+.control-select:focus {
+    border-color: var(--accent-blue);
+}
+
+@media (max-width: 767px) {
+    .controls-section {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .control-select {
+        width: 100%;
+    }
+}
+
+/* ========================================
    ADD ASSET FORM
    ======================================== */
 
 .add-asset-section {
     background-color: var(--bg-card);
-    padding: var(--spacing-lg);
+    padding: var(--spacing-md);
     border-radius: var(--border-radius);
-    margin-bottom: var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
     box-shadow: var(--shadow-sm);
 }
 
@@ -318,7 +412,7 @@ body {
     border-radius: var(--border-radius);
     cursor: pointer;
     transition: all var(--transition-base);
-    min-height: 44px; /* Touch-friendly */
+    min-height: 36px; /* Compact but usable */
 }
 
 .btn-primary {
@@ -327,7 +421,7 @@ body {
 }
 
 .btn-primary:hover {
-    background-color: #3a7bc8;
+    background-color: #5A7A9D;
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
 }
@@ -349,7 +443,7 @@ body {
 }
 
 .btn-update:hover {
-    background-color: #218838;
+    background-color: #5A8A6F;
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
 }
@@ -363,10 +457,10 @@ body {
 }
 
 .btn-edit:hover {
-    background-color: #3a7bc8;
+    background-color: #5A7A9D;
 }
 
-.btn-reset {
+.btn-review {
     background-color: var(--accent-green);
     color: white;
     font-size: var(--font-size-sm);
@@ -374,8 +468,8 @@ body {
     min-height: 36px;
 }
 
-.btn-reset:hover {
-    background-color: #218838;
+.btn-review:hover {
+    background-color: #5A8A6F;
 }
 
 .btn-delete {
@@ -412,7 +506,7 @@ body {
    ======================================== */
 
 .assets-section {
-    margin-bottom: var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
 }
 
 .section-header {
@@ -450,7 +544,8 @@ body {
 
 .asset-card:hover {
     transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-lg);
+    border-left-width: 5px;
 }
 
 /* Alert states */
@@ -464,6 +559,14 @@ body {
     background-color: rgba(204, 0, 0, 0.15);
     border-left-color: var(--accent-red);
     box-shadow: var(--shadow-red);
+}
+
+/* Editing state */
+.asset-card.editing {
+    border: 2px solid var(--accent-blue);
+    border-left-width: 5px;
+    box-shadow: 0 0 0 3px rgba(107, 140, 174, 0.2), var(--shadow-md);
+    background-color: rgba(107, 140, 174, 0.05);
 }
 
 /* Card header */
@@ -531,20 +634,73 @@ body {
     color: var(--accent-red);
 }
 
-/* Card actions */
+/* Card Actions - Redesigned layout */
 .card-actions {
     display: flex;
+    flex-direction: column;
     gap: var(--spacing-sm);
-    flex-wrap: wrap;
 }
 
+/* Primary Review Button */
+.btn-review-primary {
+    width: 100%;
+    min-height: 40px;
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    background-color: var(--accent-green);
+    color: white;
+    padding: var(--spacing-sm);
+}
+
+.btn-review-primary:hover {
+    background-color: #5A8A6F;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+/* Secondary Actions Container */
+.card-actions-secondary {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-sm);
+}
+
+/* Icon Buttons */
+.btn-icon {
+    min-height: 32px;
+    min-width: 32px;
+    padding: var(--spacing-xs);
+    font-size: var(--font-size-lg);
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    color: white;
+}
+
+.btn-icon:hover {
+    background-color: var(--bg-input);
+    color: var(--text-primary);
+    transform: scale(1.05);
+}
+
+.btn-icon.btn-edit:hover {
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+}
+
+.btn-icon.btn-delete:hover {
+    border-color: var(--accent-red);
+    color: var(--accent-red);
+}
+
+/* Mobile: Keep same layout (already optimal) */
 @media (max-width: 767px) {
-    .card-actions {
-        flex-direction: column;
+    .btn-review-primary {
+        min-height: 44px; /* Touch-friendly */
     }
 
-    .card-actions .btn {
-        width: 100%;
+    .btn-icon {
+        min-height: 40px;
+        min-width: 40px;
     }
 }
 

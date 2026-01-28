@@ -158,7 +158,9 @@ function validateVendor(vendor) {
  * @returns {Object} { valid: boolean, value?: string, error?: string }
  */
 function validateFixRelease(value) {
-    const num = parseFloat(value);
+    // Normalize comma to period for international users
+    const normalized = String(value).replace(',', '.');
+    const num = parseFloat(normalized);
 
     if (isNaN(num)) {
         return {
