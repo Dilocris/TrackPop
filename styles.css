@@ -303,6 +303,14 @@ body {
     border-radius: var(--border-radius);
     margin-bottom: var(--spacing-md);
     box-shadow: var(--shadow-sm);
+    border-left: 4px solid var(--accent-blue);
+    transition: border-color var(--transition-base), box-shadow var(--transition-base);
+}
+
+/* Orange indicator when editing an existing asset */
+.add-asset-section.editing-mode {
+    border-left-color: var(--accent-orange);
+    box-shadow: 0 0 0 2px rgba(184, 136, 77, 0.2), var(--shadow-sm);
 }
 
 .section-title {
@@ -323,10 +331,10 @@ body {
     gap: var(--spacing-md);
 }
 
-/* Responsive: 3 columns on tablet+ */
+/* Responsive: 4 columns on tablet+ */
 @media (min-width: 768px) {
     .form-row {
-        grid-template-columns: 2fr 1.5fr 1fr;
+        grid-template-columns: 2fr 1.5fr 1fr 1fr;
     }
 }
 
@@ -359,6 +367,41 @@ body {
 
 .form-group input::placeholder {
     color: var(--text-muted);
+}
+
+/* Textarea styling */
+.form-group textarea {
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--font-size-base);
+    font-family: var(--font-family);
+    color: var(--text-primary);
+    background-color: var(--bg-input);
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius);
+    outline: none;
+    transition: border-color var(--transition-base);
+    resize: vertical;
+    min-height: 60px;
+}
+
+.form-group textarea:focus {
+    border-color: var(--accent-blue);
+}
+
+.form-group textarea::placeholder {
+    color: var(--text-muted);
+}
+
+/* Full-width form group */
+.form-group-full {
+    grid-column: 1 / -1;
+}
+
+/* Input help text */
+.input-help {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    margin-top: var(--spacing-xs);
 }
 
 /* Input error state */
@@ -397,6 +440,37 @@ body {
 
     .form-actions .btn {
         width: 100%;
+    }
+}
+
+/* ========================================
+   SETTINGS SECTION
+   ======================================== */
+
+.settings-section {
+    background-color: var(--bg-card);
+    padding: var(--spacing-md);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing-md);
+    box-shadow: var(--shadow-sm);
+    border-left: 4px solid var(--accent-orange);
+}
+
+.settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.settings-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-md);
+}
+
+@media (max-width: 767px) {
+    .settings-row {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -561,12 +635,12 @@ body {
     box-shadow: var(--shadow-red);
 }
 
-/* Editing state */
+/* Editing state - Orange outline for visibility */
 .asset-card.editing {
-    border: 2px solid var(--accent-blue);
+    border: 2px solid var(--accent-orange);
     border-left-width: 5px;
-    box-shadow: 0 0 0 3px rgba(107, 140, 174, 0.2), var(--shadow-md);
-    background-color: rgba(107, 140, 174, 0.05);
+    box-shadow: 0 0 0 3px rgba(184, 136, 77, 0.3), var(--shadow-md);
+    background-color: rgba(184, 136, 77, 0.08);
 }
 
 /* Card header */
@@ -617,10 +691,76 @@ body {
     margin-bottom: var(--spacing-xs);
 }
 
+/* Legacy days counter (kept for compatibility) */
 .days-counter {
     font-size: var(--font-size-base);
     color: var(--text-primary);
     margin-bottom: var(--spacing-xs);
+}
+
+/* Prominent Business Days Counter */
+.days-counter-prominent {
+    text-align: center;
+    padding: var(--spacing-md);
+    margin: var(--spacing-sm) 0;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: var(--border-radius);
+}
+
+.days-counter-main {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: var(--spacing-sm);
+}
+
+.days-number {
+    font-size: 42px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+}
+
+.days-label {
+    font-size: var(--font-size-lg);
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.days-counter-secondary {
+    margin-top: var(--spacing-xs);
+}
+
+.calendar-days {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+}
+
+/* Alert-specific days counter colors */
+.asset-card.alert-orange .days-number {
+    color: var(--accent-orange);
+}
+
+.asset-card.alert-red .days-number {
+    color: var(--accent-red);
+}
+
+/* Notes section */
+.card-notes {
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background-color: rgba(0, 0, 0, 0.15);
+    border-radius: var(--border-radius);
+    border-left: 3px solid var(--border-color);
+}
+
+.notes-text {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 
 .alert-message {

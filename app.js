@@ -26,6 +26,8 @@ let addAssetForm;
 let assetNameInput;
 let vendorInput;
 let fixReleaseInput;
+let lastReviewInput;
+let notesInput;
 let formError;
 let assetsContainer;
 let emptyState;
@@ -33,6 +35,11 @@ let noResultsState;
 let assetCount;
 let formTitle;
 let submitBtn;
+
+// Settings DOM elements
+let settingsForm;
+let orangeThresholdInput;
+let redThresholdInput;
 
 // Debounce timer for search
 let searchDebounceTimer;
@@ -43,6 +50,9 @@ let editingAssetId = null;
 // Sort and filter state
 let currentSortOrder = 'urgency';
 let currentFilter = 'all';
+
+// Settings state (for cancel/revert)
+let originalSettingsBeforeEdit = null;
 
 /**
  * Initializes the application
@@ -62,6 +72,8 @@ function init() {
     assetNameInput = document.getElementById('asset-name-input');
     vendorInput = document.getElementById('vendor-input');
     fixReleaseInput = document.getElementById('fix-release-input');
+    lastReviewInput = document.getElementById('last-review-input');
+    notesInput = document.getElementById('notes-input');
     formError = document.getElementById('form-error');
     assetsContainer = document.getElementById('assets-container');
     emptyState = document.getElementById('empty-state');
@@ -70,10 +82,18 @@ function init() {
     formTitle = document.getElementById('form-title');
     submitBtn = document.getElementById('submit-btn');
 
+    // Settings DOM elements
+    settingsForm = document.getElementById('settings-form');
+    orangeThresholdInput = document.getElementById('orange-threshold-input');
+    redThresholdInput = document.getElementById('red-threshold-input');
+
     // Set up event listeners
     addAssetForm.addEventListener('submit', handleFormSubmit);
     searchInput.addEventListener('input', handleSearch);
     clearSearchBtn.addEventListener('click', handleClearSearch);
+
+    // Settings form event listener
+    settingsForm.addEventListener('submit', handleSettingsSave);
 
     // Sort and filter controls
     const sortSelect = document.getElementById('sort-select');
@@ -101,11 +121,49 @@ function init() {
         addAssetSection.style.display = isVisible ? 'none' : 'block';
         addAssetBtn.textContent = isVisible ? '➕ Add Asset' : '➖ Hide Form';
 
+        // Hide settings when opening add form
+        const settingsSection = document.getElementById('settings-section');
+        const settingsBtn = document.getElementById('settings-btn');
+        if (settingsSection.style.display !== 'none') {
+            settingsSection.style.display = 'none';
+            settingsBtn.textContent = '⚙️ Settings';
+        }
+
         if (!isVisible) {
             addAssetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
             assetNameInput.focus();
         }
     });
+
+    // Settings button event listener
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsSection = document.getElementById('settings-section');
+
+    settingsBtn.addEventListener('click', () => {
+        const isVisible = settingsSection.style.display !== 'none';
+        settingsSection.style.display = isVisible ? 'none' : 'block';
+        settingsBtn.textContent = isVisible ? '⚙️ Settings' : '⚙️ Hide Settings';
+
+        // Hide add form when opening settings
+        if (addAssetSection.style.display !== 'none') {
+            addAssetSection.style.display = 'none';
+            addAssetBtn.textContent = '➕ Add Asset';
+            if (editingAssetId) {
+                cancelEdit();
+            }
+        }
+
+        if (!isVisible) {
+            settingsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            // Store original settings before editing (for cancel/revert)
+            originalSettingsBeforeEdit = getSettings();
+            loadSettings();
+        }
+    });
+
+    // Cancel settings button event listener
+    const cancelSettingsBtn = document.getElementById('cancel-settings-btn');
+    cancelSettingsBtn.addEventListener('click', handleSettingsCancel);
 
     // CSV Import event listeners
     const csvFileInput = document.getElementById('csv-file-input');
@@ -310,13 +368,29 @@ function handleFormSubmit(event) {
             return;
         }
 
+        // Get last review date (defaults to now if not specified)
+        const lastReviewValue = lastReviewInput.value;
+        let lastResetTime;
+        if (lastReviewValue) {
+            // Convert date input to ISO string (at start of day, local time)
+            const reviewDate = new Date(lastReviewValue + 'T00:00:00');
+            lastResetTime = reviewDate.toISOString();
+        } else {
+            lastResetTime = new Date().toISOString();
+        }
+
+        // Get notes value
+        const notesValue = (notesInput.value || '').trim();
+
         // Check if we're editing or adding
         if (editingAssetId) {
             // UPDATE EXISTING ASSET
             const updated = updateAsset(editingAssetId, {
                 name: nameResult.value,
                 vendor: vendorResult.value || 'Not specified',
-                fixRelease: fixReleaseResult.value
+                fixRelease: fixReleaseResult.value,
+                lastReset: lastResetTime,
+                notes: notesValue
             });
 
             if (updated) {
@@ -333,8 +407,9 @@ function handleFormSubmit(event) {
                 vendor: vendorResult.value || 'Not specified',
                 fixRelease: fixReleaseResult.value,
                 startDate: currentTime,
-                lastReset: currentTime,
-                createdAt: currentTime
+                lastReset: lastResetTime,
+                createdAt: currentTime,
+                notes: notesValue
             };
 
             // Save to storage
@@ -384,8 +459,8 @@ function clearFormErrors() {
     formError.style.display = 'none';
 
     // Remove error class from all inputs
-    [assetNameInput, vendorInput, fixReleaseInput].forEach(input => {
-        input.classList.remove('input-error');
+    [assetNameInput, vendorInput, fixReleaseInput, lastReviewInput, notesInput].forEach(input => {
+        if (input) input.classList.remove('input-error');
     });
 }
 
@@ -411,7 +486,16 @@ function startEdit(id) {
     const addAssetBtn = document.getElementById('add-asset-btn');
     if (addAssetSection) {
         addAssetSection.style.display = 'block';
+        addAssetSection.classList.add('editing-mode');
         addAssetBtn.textContent = '➖ Hide Form';
+    }
+
+    // Hide settings if open
+    const settingsSection = document.getElementById('settings-section');
+    const settingsBtn = document.getElementById('settings-btn');
+    if (settingsSection && settingsSection.style.display !== 'none') {
+        settingsSection.style.display = 'none';
+        settingsBtn.textContent = '⚙️ Settings';
     }
 
     // Update form title and button
@@ -423,6 +507,18 @@ function startEdit(id) {
     assetNameInput.value = asset.name;
     vendorInput.value = asset.vendor === 'Not specified' ? '' : asset.vendor;
     fixReleaseInput.value = asset.fixRelease;
+
+    // Populate last review date (convert ISO to date input format YYYY-MM-DD)
+    if (asset.lastReset) {
+        const lastResetDate = new Date(asset.lastReset);
+        const year = lastResetDate.getFullYear();
+        const month = String(lastResetDate.getMonth() + 1).padStart(2, '0');
+        const day = String(lastResetDate.getDate()).padStart(2, '0');
+        lastReviewInput.value = `${year}-${month}-${day}`;
+    }
+
+    // Populate notes
+    notesInput.value = asset.notes || '';
 
     // Clear errors
     clearFormErrors();
@@ -478,11 +574,12 @@ function cancelEdit() {
         card.classList.remove('editing');
     });
 
-    // Hide the form section
+    // Hide the form section and remove editing mode
     const addAssetSection = document.getElementById('add-asset-section');
     const addAssetBtn = document.getElementById('add-asset-btn');
     if (addAssetSection) {
         addAssetSection.style.display = 'none';
+        addAssetSection.classList.remove('editing-mode');
         addAssetBtn.textContent = '➕ Add Asset';
     }
 }
@@ -598,8 +695,9 @@ function filterAssets(assets, searchTerm) {
         const nameMatch = asset.name.toLowerCase().includes(lowerSearch);
         const vendorMatch = asset.vendor.toLowerCase().includes(lowerSearch);
         const releaseMatch = asset.fixRelease.includes(lowerSearch);
+        const notesMatch = asset.notes ? asset.notes.toLowerCase().includes(lowerSearch) : false;
 
-        return nameMatch || vendorMatch || releaseMatch;
+        return nameMatch || vendorMatch || releaseMatch || notesMatch;
     });
 }
 
@@ -616,15 +714,16 @@ function filterAssets(assets, searchTerm) {
  * @returns {Array<Object>} Sorted assets
  */
 function sortAssetsByUrgency(assets) {
+    const settings = getSettings();
     return assets.sort((a, b) => {
         // Calculate metrics for both assets
         const aCalDays = calculateDaysElapsed(a.lastReset);
         const aBusDays = calculateBusinessDays(a.lastReset);
-        const aAlertLevel = getAlertLevel(aBusDays, aCalDays);
+        const aAlertLevel = getAlertLevel(aBusDays, aCalDays, settings.orangeThreshold, settings.redThreshold);
 
         const bCalDays = calculateDaysElapsed(b.lastReset);
         const bBusDays = calculateBusinessDays(b.lastReset);
-        const bAlertLevel = getAlertLevel(bBusDays, bCalDays);
+        const bAlertLevel = getAlertLevel(bBusDays, bCalDays, settings.orangeThreshold, settings.redThreshold);
 
         // Define alert priority order
         const alertOrder = { red: 0, orange: 1, normal: 2 };
@@ -675,10 +774,15 @@ function sortAssets(assets, sortOrder) {
 function filterAssetsByAlertLevel(assets, filterValue) {
     if (filterValue === 'all') return assets;
 
+    const settings = getSettings();
     return assets.filter(asset => {
+        const calendarDays = calculateDaysElapsed(asset.lastReset);
+        const businessDays = calculateBusinessDays(asset.lastReset);
         const alertLevel = getAlertLevel(
-            calculateCalendarDays(asset.lastReset),
-            calculateBusinessDays(asset.lastReset)
+            businessDays,
+            calendarDays,
+            settings.orangeThreshold,
+            settings.redThreshold
         );
         return alertLevel === filterValue;
     });
@@ -696,11 +800,12 @@ function filterAssetsByAlertLevel(assets, filterValue) {
  * @returns {HTMLElement} Asset card element
  */
 function createAssetCard(asset) {
-    // Calculate metrics
+    // Calculate metrics using configurable thresholds
+    const settings = getSettings();
     const calendarDays = calculateDaysElapsed(asset.lastReset);
     const businessDays = calculateBusinessDays(asset.lastReset);
-    const alertLevel = getAlertLevel(businessDays, calendarDays);
-    const alertMessage = getAlertMessage(alertLevel);
+    const alertLevel = getAlertLevel(businessDays, calendarDays, settings.orangeThreshold, settings.redThreshold);
+    const alertMessage = getAlertMessage(alertLevel, settings.orangeThreshold, settings.redThreshold);
 
     // Alert icon for better accessibility
     const alertIcon = alertLevel === 'red' ? '🔴' : alertLevel === 'orange' ? '🟠' : '';
@@ -710,7 +815,14 @@ function createAssetCard(asset) {
     card.className = `asset-card alert-${alertLevel}`;
     card.dataset.assetId = asset.id;
 
-    // Build card HTML
+    // Notes section HTML (only show if notes exist)
+    const notesHtml = asset.notes ? `
+        <div class="card-notes">
+            <p class="notes-text">📝 ${escapeHtml(asset.notes)}</p>
+        </div>
+    ` : '';
+
+    // Build card HTML with prominent business days counter
     card.innerHTML = `
         <div class="card-header">
             <h3 class="asset-name">${alertIcon} 📦 ${escapeHtml(asset.name)}</h3>
@@ -721,13 +833,19 @@ function createAssetCard(asset) {
             <span class="fix-release">📋 v${asset.fixRelease}</span>
         </div>
         <div class="card-divider"></div>
+        <div class="days-counter-prominent">
+            <div class="days-counter-main">
+                <span class="days-number">${businessDays}</span>
+                <span class="days-label">business day${businessDays !== 1 ? 's' : ''}</span>
+            </div>
+            <div class="days-counter-secondary">
+                <span class="calendar-days">${calendarDays} calendar day${calendarDays !== 1 ? 's' : ''}</span>
+            </div>
+        </div>
+        ${alertMessage ? `<p class="alert-message">${alertMessage}</p>` : ''}
         <div class="card-body">
             <p class="start-date">📅 Last Reviewed: ${formatDate(asset.lastReset)}</p>
-            <p class="days-counter">
-                ⏱️ <strong>${calendarDays}</strong> calendar day${calendarDays !== 1 ? 's' : ''} |
-                <strong>${businessDays}</strong> business day${businessDays !== 1 ? 's' : ''}
-            </p>
-            ${alertMessage ? `<p class="alert-message">${alertMessage}</p>` : ''}
+            ${notesHtml}
         </div>
         <div class="card-actions">
             <!-- Primary Action: Review -->
@@ -806,6 +924,132 @@ function handleReview(id) {
         renderAssets(searchInput.value);
         debugLog('Asset reviewed:', id);
     }
+}
+
+// ========================================
+// SETTINGS MANAGEMENT
+// ========================================
+
+const SETTINGS_KEY = 'assetTrackerSettings';
+
+/**
+ * Default settings values
+ */
+const DEFAULT_SETTINGS = {
+    orangeThreshold: 5,
+    redThreshold: 7
+};
+
+/**
+ * Gets settings from localStorage
+ * @returns {Object} Settings object with thresholds
+ */
+function getSettings() {
+    try {
+        const stored = localStorage.getItem(SETTINGS_KEY);
+        if (stored) {
+            const settings = JSON.parse(stored);
+            return {
+                orangeThreshold: settings.orangeThreshold || DEFAULT_SETTINGS.orangeThreshold,
+                redThreshold: settings.redThreshold || DEFAULT_SETTINGS.redThreshold
+            };
+        }
+    } catch (error) {
+        debugLog('Failed to load settings:', error);
+    }
+    return { ...DEFAULT_SETTINGS };
+}
+
+/**
+ * Saves settings to localStorage
+ * @param {Object} settings - Settings object
+ * @returns {boolean} Success status
+ */
+function saveSettings(settings) {
+    try {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+        return true;
+    } catch (error) {
+        debugLog('Failed to save settings:', error);
+        return false;
+    }
+}
+
+/**
+ * Loads settings into the form
+ */
+function loadSettings() {
+    const settings = getSettings();
+    if (orangeThresholdInput) {
+        orangeThresholdInput.value = settings.orangeThreshold;
+    }
+    if (redThresholdInput) {
+        redThresholdInput.value = settings.redThreshold;
+    }
+}
+
+/**
+ * Handles settings form submission
+ * @param {Event} event - Form submit event
+ */
+function handleSettingsSave(event) {
+    event.preventDefault();
+
+    const orangeThreshold = parseInt(orangeThresholdInput.value, 10);
+    const redThreshold = parseInt(redThresholdInput.value, 10);
+
+    // Validate thresholds
+    if (isNaN(orangeThreshold) || orangeThreshold < 1 || orangeThreshold > 30) {
+        showToast('Orange threshold must be between 1 and 30', 'error');
+        return;
+    }
+
+    if (isNaN(redThreshold) || redThreshold < 1 || redThreshold > 60) {
+        showToast('Red threshold must be between 1 and 60', 'error');
+        return;
+    }
+
+    const success = saveSettings({
+        orangeThreshold,
+        redThreshold
+    });
+
+    if (success) {
+        showToast('Settings saved successfully', 'success');
+        // Re-render assets with new thresholds
+        renderAssets(searchInput.value);
+        // Close the settings panel
+        closeSettingsPanel();
+    } else {
+        showToast('Failed to save settings', 'error');
+    }
+}
+
+/**
+ * Handles settings cancel - reverts to original values
+ */
+function handleSettingsCancel() {
+    // Revert to original settings
+    if (originalSettingsBeforeEdit) {
+        orangeThresholdInput.value = originalSettingsBeforeEdit.orangeThreshold;
+        redThresholdInput.value = originalSettingsBeforeEdit.redThreshold;
+    }
+    closeSettingsPanel();
+}
+
+/**
+ * Closes the settings panel
+ */
+function closeSettingsPanel() {
+    const settingsSection = document.getElementById('settings-section');
+    const settingsBtn = document.getElementById('settings-btn');
+    if (settingsSection) {
+        settingsSection.style.display = 'none';
+    }
+    if (settingsBtn) {
+        settingsBtn.textContent = '⚙️ Settings';
+    }
+    originalSettingsBeforeEdit = null;
 }
 
 // Initialize app when DOM is ready

@@ -27,6 +27,9 @@
                 <button type="button" id="import-csv-btn-trigger" class="btn btn-secondary">
                     📥 Import CSV
                 </button>
+                <button type="button" id="settings-btn" class="btn btn-secondary">
+                    ⚙️ Settings
+                </button>
                 <input
                     type="file"
                     id="csv-file-input"
@@ -107,6 +110,49 @@
                 </div>
             </section>
 
+            <!-- Settings Section (Hidden by default) -->
+            <section class="settings-section" id="settings-section" style="display: none;">
+                <h2 class="section-title">Alert Settings</h2>
+                <form id="settings-form" class="settings-form">
+                    <div class="form-row settings-row">
+                        <div class="form-group">
+                            <label for="orange-threshold-input">Orange Alert (Business Days)</label>
+                            <input
+                                type="number"
+                                id="orange-threshold-input"
+                                name="orangeThreshold"
+                                min="1"
+                                max="30"
+                                value="5"
+                                aria-label="Business days before orange alert"
+                            >
+                            <span class="input-help">Warning when business days exceed this value</span>
+                        </div>
+                        <div class="form-group">
+                            <label for="red-threshold-input">Red Alert (Business Days)</label>
+                            <input
+                                type="number"
+                                id="red-threshold-input"
+                                name="redThreshold"
+                                min="1"
+                                max="60"
+                                value="7"
+                                aria-label="Business days before red alert"
+                            >
+                            <span class="input-help">Critical when business days exceed this value</span>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" id="save-settings-btn" class="btn btn-primary">
+                            💾 Save & Close
+                        </button>
+                        <button type="button" id="cancel-settings-btn" class="btn btn-secondary">
+                            ✕ Cancel
+                        </button>
+                    </div>
+                </form>
+            </section>
+
             <!-- Add Asset Form (Hidden by default) -->
             <section class="add-asset-section" id="add-asset-section" style="display: none;">
                 <h2 id="form-title" class="section-title">Add New Asset</h2>
@@ -150,6 +196,29 @@
                                 aria-required="true"
                             >
                         </div>
+
+                        <!-- Last Review Date Input -->
+                        <div class="form-group">
+                            <label for="last-review-input">Last Review Date</label>
+                            <input
+                                type="date"
+                                id="last-review-input"
+                                name="lastReview"
+                                aria-label="Last review date (defaults to today)"
+                            >
+                        </div>
+                    </div>
+
+                    <!-- Notes Input -->
+                    <div class="form-group form-group-full">
+                        <label for="notes-input">Notes</label>
+                        <textarea
+                            id="notes-input"
+                            name="notes"
+                            placeholder="Add any notes about this asset..."
+                            rows="2"
+                            maxlength="500"
+                        ></textarea>
                     </div>
 
                     <!-- Error Message Display -->

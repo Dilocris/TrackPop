@@ -217,6 +217,9 @@ function isValidAsset(asset) {
     if (typeof asset.lastReset !== 'string') return false;
     if (typeof asset.createdAt !== 'string') return false;
 
+    // Notes is optional, but if present must be a string
+    if ('notes' in asset && typeof asset.notes !== 'string') return false;
+
     // Validate dates are valid ISO strings
     if (isNaN(Date.parse(asset.startDate))) return false;
     if (isNaN(Date.parse(asset.lastReset))) return false;

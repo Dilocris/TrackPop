@@ -107,28 +107,29 @@ function calculateBusinessDays(startDateISO) {
 }
 
 /**
- * Determines alert level based on business and calendar days
+ * Determines alert level based on business days
  *
- * BUSINESS RULES (defined by user requirements):
- * - RED: Calendar days > 7 (highest priority)
- * - ORANGE: Business days > 5 (excludes weekends & holidays)
+ * BUSINESS RULES (configurable via settings):
+ * - RED: Business days > redThreshold (highest priority)
+ * - ORANGE: Business days > orangeThreshold (excludes weekends & holidays)
  * - NORMAL: Below both thresholds
  *
  * @param {number} businessDays - Number of business days elapsed
- * @param {number} calendarDays - Number of calendar days elapsed
+ * @param {number} calendarDays - Number of calendar days elapsed (kept for compatibility)
+ * @param {number} orangeThreshold - Business days threshold for orange alert (default: 5)
+ * @param {number} redThreshold - Business days threshold for red alert (default: 7)
  * @returns {string} 'red', 'orange', or 'normal'
  *
  * PRIORITY: Red takes precedence over orange
- * Example: 10 calendar days + 3 business days → RED (not orange)
  */
-function getAlertLevel(businessDays, calendarDays) {
-    // Red alert takes priority - calendar days exceeded
-    if (calendarDays > 7) {
+function getAlertLevel(businessDays, calendarDays, orangeThreshold = 5, redThreshold = 7) {
+    // Red alert takes priority - business days exceeded red threshold
+    if (businessDays > redThreshold) {
         return 'red';
     }
 
-    // Orange alert - business days exceeded
-    if (businessDays > 5) {
+    // Orange alert - business days exceeded orange threshold
+    if (businessDays > orangeThreshold) {
         return 'orange';
     }
 
@@ -178,14 +179,16 @@ function isWeekend(date) {
  * UI HELPER: Provides user-friendly explanation for alerts
  *
  * @param {string} alertLevel - 'red', 'orange', or 'normal'
+ * @param {number} orangeThreshold - Business days threshold for orange alert (default: 5)
+ * @param {number} redThreshold - Business days threshold for red alert (default: 7)
  * @returns {string} Human-readable alert message
  */
-function getAlertMessage(alertLevel) {
+function getAlertMessage(alertLevel, orangeThreshold = 5, redThreshold = 7) {
     switch (alertLevel) {
         case 'red':
-            return '⚠️ Critical: Over 7 calendar days without review';
+            return `⚠️ Critical: Over ${redThreshold} business days without review`;
         case 'orange':
-            return '⚠️ Warning: Over 5 business days without review';
+            return `⚠️ Warning: Over ${orangeThreshold} business days without review`;
         case 'normal':
         default:
             return '';
